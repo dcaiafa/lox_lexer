@@ -1,0 +1,23 @@
+@lexer
+
+NUM = [0-9]+;
+
+@macro HEX = [0-9a-fA-F];
+
+@frag '"' @push_mode(String);
+@mode String {
+  STR = '"' @pop_mode;
+  @frag ([\u0020-\U0010FFFF]-["\\]);
+  @frag '\\' [nrt"];
+  @frag '\\x' HEX HEX ;
+  @frag '\\u' HEX HEX HEX HEX ;
+  @frag '\\U' HEX HEX HEX HEX HEX HEX HEX HEX ;
+}
+
+@frag [ \n\r\t]+  @discard ;
+
+@parser
+
+@start
+S = token*;
+token = NUM | STR | @error;
