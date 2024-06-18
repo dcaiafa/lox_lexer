@@ -41,11 +41,11 @@ func TestParser(t *testing.T) {
 	}
 
 	run(`
-		123 "foo"
-		"hello\nworld" 987 "The \"crazy\" bear!"
-		"this is good" "this is bad \x1" "this will be discarded"
-		"life goes on"
-		`, ``)
+    123 "foo"
+    "hello\nworld" 987 "The \"crazy\" bear!"
+    "this is good" "this is bad \x1" "this will be discarded"
+    "life goes on"
+    `, ``)
 	/*
 			run(`
 		1 "\x1" 1

@@ -46,14 +46,6 @@ func (p *parser) on_token(tok Token) Token {
 	return tok
 }
 
-func (p *parser) on_token__err(_ error) Token {
-	return Token{
-		Type: ERROR,
-	}
-}
-
-func (p *parser) _onError() {
-	if p.errorToken().Type != ERROR {
-		p.errLogger.Errorf(p.errorToken().Pos, "unexpected token %v", p.errorToken())
-	}
+func (p *parser) on_token__err(err Error) Token {
+	return err.Token
 }

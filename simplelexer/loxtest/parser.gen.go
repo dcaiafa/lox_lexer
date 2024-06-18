@@ -63,24 +63,23 @@ type lox struct {
 	_state _Stack[int32]
 	_sym   _Stack[any]
 
-	_lookaheadSym any
-	_lookahead    int
-
-	_queuedLookahead    int
-	_queuedLookaheadSym any
+	_la     int
+	_lasym  any
+	_qla    int
+	_qlasym any
 }
 
 func (p *parser) parse(lex _Lexer) bool {
 	const accept = 0x7FFFFFFF
 
 	p._lex = lex
-
+	p._qla = -1
 	p._state.Push(0)
 	p._ReadToken()
 
 	for {
 		topState := p._state.Peek(0)
-		action, ok := _Find(_Actions, topState, int32(p._lookahead))
+		action, ok := _Find(_Actions, topState, int32(p._la))
 		if !ok {
 			if !p._Recover() {
 				return false
@@ -90,7 +89,7 @@ func (p *parser) parse(lex _Lexer) bool {
 			break
 		} else if action >= 0 { // shift
 			p._state.Push(action)
-			p._sym.Push(p._lookaheadSym)
+			p._sym.Push(p._lasym)
 			p._ReadToken()
 		} else { // reduce
 			prod := -action
@@ -110,47 +109,56 @@ func (p *parser) parse(lex _Lexer) bool {
 }
 
 func (p *parser) _ReadToken() {
-	p._lookaheadSym, p._lookahead = p._lex.ReadToken()
+	if p._qla != -1 {
+		p._la = p._qla
+		p._lasym = p._qlasym
+		p._qla = -1
+		p._qlasym = nil
+		return
+	}
+
+	p._lasym, p._la = p._lex.ReadToken()
+	if p._la == ERROR {
+		p._lasym = Error{Token: p._lasym.(Token)}
+	}
 }
 
 func (p *parser) _Recover() bool {
-	errSym := p._lookaheadSym
+	errSym := p._lasym
+
+	for p._la == ERROR {
+		p._ReadToken()
+	}
 
 	for {
-		for p._lookahead == ERROR {
-			p._ReadToken()
-		}
-
 		saveState := p._state
 		saveSym := p._sym
 
 		for len(p._state) > 1 {
-			// Is ERROR a valid lookahead at the top state?
 			state := p._state.Peek(0)
-			action, ok := _Find(_Actions, state, int32(ERROR))
 
-			// If so, check whether, after processing all reductions, we can reach a
-			// state where shifting the current _lookahead is a valid action.
-			action2 := action
-			for ok && action2 <= 0 {
-				prod := -action2
-				rule := _LHS[int(prod)]
-				state, _ = _Find(_Goto, state, rule)
-
-				action2, ok = _Find(_Actions, state, int32(ERROR))
+			for {
+				action, ok := _Find(_Actions, state, int32(ERROR))
 				if !ok {
 					break
-				} else if action2 >= 0 {
-					_, ok = _Find(_Actions, state, int32(p._lookahead))
+				}
+
+				if action < 0 {
+					prod := -action
+					rule := _LHS[int(prod)]
+					state, _ = _Find(_Goto, state, rule)
+					continue
+				}
+
+				_, ok = _Find(_Actions, state, int32(p._la))
+				if !ok {
 					break
 				}
-			}
 
-			if ok {
-				p._queuedLookahead = p._lookahead
-				p._queuedLookaheadSym = p._lookaheadSym
-				p._lookahead = ERROR
-				p._lookaheadSym = err
+				p._qla = p._la
+				p._qlasym = p._lasym
+				p._la = ERROR
+				p._lasym = errSym
 				return true
 			}
 
@@ -158,7 +166,7 @@ func (p *parser) _Recover() bool {
 			p._sym.Pop(1)
 		}
 
-		if p._lookahead == EOF {
+		if p._la == EOF {
 			return false
 		}
 
@@ -184,7 +192,7 @@ func (p *parser) _Act(prod int32) any {
 		)
 	case 4:
 		return p.on_token__err(
-			_cast[error](p._sym.Peek(0)),
+			_cast[Error](p._sym.Peek(0)),
 		)
 	case 5: // ZeroOrMore
 		return _cast[[]_i1.Token](p._sym.Peek(0))
