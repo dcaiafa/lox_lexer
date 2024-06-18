@@ -6,35 +6,25 @@ import (
 	baselexer "github.com/dcaiafa/lox_lexer/simplelexer"
 )
 
-func Parse(fset *gotoken.FileSet, expr string) ([]Token, error) {
+func Parse(fset *gotoken.FileSet, expr string) []Token {
 	file := fset.AddFile("expr", -1, len(expr))
-	errs := &ErrLogger{
-		Fset: fset,
-	}
-
-	onError := func(l *baselexer.Lexer) {
-		errs.Errorf(l.Pos(), "unexpected character: %c", l.Peek())
-	}
 
 	var parser parser
-	parser.errLogger = errs
 	lex := baselexer.New(baselexer.Config{
 		StateMachine: new(_LexerStateMachine),
-		OnError:      onError,
 		File:         file,
 		Input:        []byte(expr),
 	})
 
 	_ = parser.parse(lex)
-	return parser.result, errs.Err()
+	return parser.result
 }
 
 type Token = baselexer.Token
 
 type parser struct {
 	lox
-	errLogger *ErrLogger
-	result    []Token
+	result []Token
 }
 
 func (p *parser) on_S(toks []Token) any {

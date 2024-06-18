@@ -13,7 +13,7 @@ func TestParser(t *testing.T) {
 			t.Helper()
 			fset := gotoken.NewFileSet()
 			res := new(strings.Builder)
-			tokens, err := Parse(fset, input)
+			tokens := Parse(fset, input)
 			for _, tk := range tokens {
 				position := fset.Position(tk.Pos)
 				fmt.Fprintf(
@@ -22,10 +22,6 @@ func TestParser(t *testing.T) {
 					_TokenToString(tk.Type),
 					string(tk.Str),
 					position.Line, position.Column)
-			}
-			if err != nil {
-				fmt.Fprintln(res, "Error:")
-				fmt.Fprintln(res, err.Error())
 			}
 
 			output = strings.TrimSpace(output)
@@ -41,11 +37,20 @@ func TestParser(t *testing.T) {
 	}
 
 	run(`
-    123 "foo"
-    "hello\nworld" 987 "The \"crazy\" bear!"
-    "this is good" "this is bad \x1" "this will be discarded"
-    "life goes on"
-    `, ``)
+123 "foo"
+ "hello\nworld" 987 "The \"crazy\" bear!"
+"this is good" "this is bad \x1" "this will be discarded"
+"life goes on"
+    `, `
+NUM [123] 2:1
+STR ["foo"] 2:5
+STR ["hello\nworld"] 3:2
+NUM [987] 3:17
+STR ["The \"crazy\" bear!"] 3:21
+STR ["this is good"] 4:1
+ERROR [] 4:16
+STR ["life goes on"] 5:1
+		`)
 	/*
 			run(`
 		1 "\x1" 1

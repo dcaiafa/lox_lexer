@@ -49,10 +49,6 @@ type Config struct {
 	// StateMachine is the Lox-generated state machine.
 	StateMachine StateMachine
 
-	// OnError is called by Lexer when an error is encountered before recovery is
-	// applied. Peek() will contain the current rune.
-	OnError func(l *Lexer)
-
 	// File is a go/token.File which is used to efficiently tag tokens with file
 	// positions.
 	File *gotoken.File
@@ -66,7 +62,6 @@ type Config struct {
 // input which may not be appropriate for very large or stream inputs.
 type Lexer struct {
 	sm          StateMachine
-	onError     func(l *Lexer)
 	file        *gotoken.File
 	input       []byte
 	inputReader *bytes.Reader
@@ -80,7 +75,6 @@ type Lexer struct {
 func New(cfg Config) *Lexer {
 	l := &Lexer{
 		sm:          cfg.StateMachine,
-		onError:     cfg.OnError,
 		file:        cfg.File,
 		input:       cfg.Input,
 		inputReader: bytes.NewReader(cfg.Input),
@@ -146,8 +140,6 @@ func (l *Lexer) ReadToken() (Token, int) {
 				Type: ERROR,
 				Pos:  l.pos,
 			}
-
-			l.onError(l)
 
 			// Read until the beginning of the next line.
 			// TODO: allow custom recovery.
